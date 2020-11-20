@@ -1,9 +1,26 @@
 ﻿@import url('open-iconic/font/css/open-iconic-bootstrap.min.css');
 
-.input-player {
-    width: 10rem;
+
+td {
+    padding: 2px;
+    text-align: center; 
 }
-.input-tricks {
+td:last-child {
+/*    border: none;*/
+    /*background-color: #ffffff;*/
+}
+.td-pair-first {
+    background-color: lightgray;
+    
+}
+.td-pair-second {
+    background-color:lightslategray;
+}
+.input-player {
+    width: 9rem;
+    margin: 5px;
+}
+.input-trick   {
     width: 3em;
 }
 

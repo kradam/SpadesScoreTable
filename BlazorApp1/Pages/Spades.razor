@@ -1,126 +1,130 @@
 @page "/spades"
+@inject IJSRuntime JSRuntime;
 
-<h1>Game #@games.Count()</h1>
+<h1>Game #@match.games.Count()</h1>
 
-<table>
+<table class="table-bordered">
     <thead>
         <tr>
-            <td></td>
-            <td></td>
+            <td rowspan="2">#</td>
+            <td rowspan="2">Dealer</td>
             @foreach (Player player in players)
             {
-                <td colspan="2"><input @bind="player.Name" /></td>
+                <td colspan="2" class="@player.TdCssClass()"><input @bind="player.Name" class="input-player" /></td>
             }
-            <td></td>
-            <td>Plan</td>
-            <td>Gain</td>
-            <td colspan="2">@players[0].Name & @players[2].Name</td>
-            <td colspan="2">@players[1].Name & @players[3].Name</td>
+            <td rowspan="2">Phase</td>
+            <td rowspan="2">Plan<br />sum</td>
+            <td rowspan="2">Gain<br />sum</td>
+            <td colspan="4" class="td-pair-first">@players[0].Name & @players[2].Name</td>
+            <td colspan="4" class="td-pair-second">@players[1].Name & @players[3].Name</td>
         </tr>
         <tr>
-            <td>#</td>
-            <td>Dealer</td>
-            <td>Plan</td>
-            <td>Gain</td>
-            <td>Plan</td>
-            <td>Gain</td>
-            <td>Plan</td>
-            <td>Gain</td>
-            <td>Plan</td>
-            <td>Gain</td>
-            <td>Phase</td>
-            <td>sum</td>
-            <td>sum</td>
-            <td>Score</td>
-            <td>Overtrick</td>
-            <td>Score</td>
-            <td>Overtrick</td>
+            <td class="td-pair-first">Plan</td>
+            <td class="td-pair-first">Gain</td>
+            <td class="td-pair-second">Plan</td>
+            <td class="td-pair-second">Gain</td>
+            <td class="td-pair-first">Plan</td>
+            <td class="td-pair-first">Gain</td>
+            <td class="td-pair-second">Plan</td>
+            <td class="td-pair-second">Gain</td>
+
+            <td class="td-pair-first">Plan</td>
+            <td class="td-pair-first">Gain</td>
+            <td class="td-pair-first">Score</td>
+            <td class="td-pair-first">Over</td>
+            <td class="td-pair-second">Plan</td>
+            <td class="td-pair-second">Gain</td>
+            <td class="td-pair-second">Score</td>
+            <td class="td-pair-second">Over</td>
         </tr>
     </thead>
-    <tbody>
-        @foreach (Game game in games)
-        {
+        <tbody>
+            @foreach (Game game in match.games)
+            {
             <tr>
                 <td>@game.Number</td>
 
                 <td>@players[game.Dealer].Name</td>
                 @foreach (PlayerTrick playersTricks in game.PlayersTricks)
                 {
-                    <td><input type="number" min="0" max="13" class="input-tricks" value=@playersTricks.Plan disabled="@game.PlanningDisabled" @onchange=@(e => { playersTricks.Plan = Convert.ToInt32(e.Value); Calculate(); }) /></td>
-                    <td><input type="number" min="0" max="13" class="input-tricks" value=@playersTricks.Gain disabled="@game.ScoringDisabled" @onchange=@(e => { playersTricks.Gain = Convert.ToInt32(e.Value); Calculate(); }) /></td>
+                    <td class="@playersTricks.TdCssClass()"><input type="number" min="0" max="13" class="input-trick" value=@playersTricks.Plan disabled="@(game.State != GameState.Planning)" @onchange=@(e => { playersTricks.Plan = Convert.ToInt32(e.Value); Calculate(); }) /></td>
+                    <td class="@playersTricks.TdCssClass()"><input type="number" min="0" max="13" class="input-trick" value=@playersTricks.Gain disabled="@(game.State != GameState.Scoring)" @onchange=@(e => { playersTricks.Gain = Convert.ToInt32(e.Value); Calculate(); }) /></td>
                 }
-                <td><button @onclick="@(e => ToggleState(e, game))">@game.State</button></td>
+
+                <td><button @onclick="@(e => ToggleState(e, game))" disabled="@(!game.ToggleStateEnabled())">@game.State</button></td>
+
                 <td>@game.SumPlan()</td>
-                <td>@game.SumGain()</td>
-                <td>@game.PairScore(0)</td>
-                <td>@game.PairOvertrick(0)</td>
-                <td>@game.PairScore(1)</td>
-                <td>@game.PairOvertrick(1)</td>
+
+                <td class="@(game.GainIncorrect() ? "text-danger" : "")">@game.SumGain()</td>
+                <td class="td-pair-first">@game.PairPlan(PairNumber.First)</td>
+                <td class="td-pair-first">@game.PairGain(PairNumber.First)</td>
+                <td class="td-pair-first">@game.PairScore(PairNumber.First)</td>
+                <td class="td-pair-first">@game.PairOvertrick(PairNumber.First)</td>
+                <td class="td-pair-second">@game.PairPlan(PairNumber.Second)</td>
+                <td class="td-pair-second">@game.PairGain(PairNumber.Second)</td>
+                <td class="td-pair-second">@game.PairScore(PairNumber.Second)</td>
+                <td class="td-pair-second">@game.PairOvertrick(PairNumber.Second)</td>
             </tr>
-        }
-    </tbody>
+            }
+        </tbody>
 </table>
 
-<!-- <td><input type="number" min="0" max="13" class="input-tricks" @bind-value="playersTricks.Plan" @bind-disabled="game.PlanningDisabled" @bind-disabled:event="onerror" @oninput= "@(e => Calculate(e, game))" /></td> -->
-<!--
--->
 
-<button @onclick="AddGame">Next game</button>
+<button @onclick="@(e => NewGame(e))" disabled="@(!match.games.Last().Validated())">New game</button>
 
 @code {
-    //protected bool IsDisabled { get; set; } = true;
-    private Player[] players = new Player[]
+    public Match match = new Match();
+
+    Player[] players = new Player[]
     {
         new Player {Id=1, Name="Player 1" },
         new Player {Id=2, Name="Player 2" },
         new Player {Id=3, Name="Player 3" },
         new Player {Id=4, Name="Player 4" },
     };
-    private IList<Game> games = new List<Game>();
+
 
     protected override void OnInitialized()
     {
-        AddGame();
-        games.First().CalculateScore(null);
+        match.NewGame();
     }
 
-    private void AddGame()
-    {
-        int dealer = (games.Count() == 0) ? 0 : (games.Last().Dealer + 1) % 4;
-        games.Add(new Game
-        {
-            Number = games.Count() + 1,
-            Dealer = dealer,
-            State = GameState.Planning,
-            PlayersTricks = new PlayerTrick[]
-            {
-                new PlayerTrick {Plan=3, Gain=3 },
-                new PlayerTrick {Plan=4, Gain=5 },
-                new PlayerTrick {Plan=3, Gain=3 },
-                new PlayerTrick {Plan=1, Gain=2 }
-                                        },
-            PairScores = new PairScore[]
-            {
-                new PairScore {score =0, overtrick=0 },
-                new PairScore {score =0, overtrick=0 }
-                                        }
 
-        });
-        Calculate();
-    }
     private void ToggleState(MouseEventArgs e, Game game)
     {
         game.ToggleState();
     }
+
+
     private void Calculate(/*ChangeEventArgs e*/)
     {
         Game previousGame = null;
-        foreach(Game game in games)
+        foreach (Game game in match.games)
         {
             game.CalculateScore(previousGame);
             previousGame = game;
         }
     }
 
+    private void NewGame(MouseEventArgs e)
+    {
+        match.NewGame();
+    }
+
+    async Task Delete(Game game)
+    {
+        if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the last game?"))  //new[] { s }
+            return;
+
+        match.RemoveLastGame();
+    }
+
 
 }
+
+
+@*              <td>
+        @if (game == games.Last() && game != games.First())
+        {<button class="btn btn-danger" @onclick="() => Delete(game)">Back</button>}
+    </td>
+*@
