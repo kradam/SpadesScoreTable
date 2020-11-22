@@ -17,11 +17,15 @@ td:last-child {
     background-color:lightslategray;
 }
 .input-player {
-    width: 9rem;
+    width: 9em;
     margin: 5px;
 }
 .input-trick   {
-    width: 3em;
+    width: 2.5em;
+}
+
+.btn-game-state {
+    width: 5em;
 }
 
 html, body {

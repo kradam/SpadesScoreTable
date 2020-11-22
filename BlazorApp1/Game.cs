@@ -28,17 +28,13 @@ public class PairScore
 public enum GameState { Planning, Scoring, Done}
 public class Game
 {
-    const int totalTricks = 13;
-    public int Number { get; set; }
+    const int TotalTricks = 13;
+    public readonly int Number; // { get; set; }
     public int Dealer { get; set; }
 
     public PlayerTrick[] PlayersTricks { get; set; }
     public PairScore[] PairScores { get; set; }
     public GameState? State { get; set; }
-    //public Game()
-    //{
-    //    State = GameState.Planning;
-    //}
     public Game (int gameNumber, int dealer)
     {
         Number = gameNumber;
@@ -53,36 +49,45 @@ public class Game
          };
         PairScores = new PairScore[]
         {
-                new PairScore {},
-                new PairScore {}
+                new PairScore {score = null, overtrick = null},
+                new PairScore {score = null, overtrick = null}
         };
     }
-    public bool PlanningDisabled { get { return (State == GameState.Scoring); } set {; } }
-    public bool ToggleStateEnabled() =>
+    public bool ToggleStateEnabled(bool penultimateGame) =>
         (State == GameState.Planning && PlayersTricks[0].Plan != null && PlayersTricks[1].Plan != null && PlayersTricks[2].Plan != null && PlayersTricks[3].Plan != null) ||
-        (State == GameState.Scoring);
-    //public bool ScoringEnabled() =>  State == GameState.Planning &&  PlayersTricks[0].Plan != null && PlayersTricks[1].Plan != null && PlayersTricks[2].Plan != null && PlayersTricks[3].Plan != null;
-    //public bool ScoringDisabled = true; // { get { return true; } set { } }
+        (State == GameState.Scoring) ||
+        (State == GameState.Done && penultimateGame);
+    public void ToggleState()
+    {
+        switch(State)
+        {
+            case GameState.Planning:
+                State = GameState.Scoring;
+                break;
+            case GameState.Scoring:
+                State = GameState.Planning;
+                break;
+            case GameState.Done:
+                State = GameState.Scoring;
+                break;
+        }
+    }
+    public bool PlanAndGainValidated() =>
+        (PlayersTricks[0].Plan != null) && (PlayersTricks[1].Plan != null) && (PlayersTricks[2].Plan != null) && (PlayersTricks[3].Plan != null) &&
+        (PlayersTricks[0].Gain != null) && (PlayersTricks[1].Gain != null) && (PlayersTricks[2].Gain != null) && (PlayersTricks[3].Gain != null) &&
+        (SumGain() == TotalTricks);
+    public bool GainIncorrect() => (PlayersTricks[0].Gain != null) && (PlayersTricks[1].Gain != null) && (PlayersTricks[2].Gain != null) && (PlayersTricks[3].Gain != null) && (SumGain() != TotalTricks);
+    public int SumPlan() => (PlayersTricks[0].Plan ?? 0) + (PlayersTricks[1].Plan ?? 0) + (PlayersTricks[2].Plan ?? 0) + (PlayersTricks[3].Plan ?? 0);
+    public int SumGain() =>   (PlayersTricks[0].Gain ?? 0) + (PlayersTricks[1].Gain ?? 0) + (PlayersTricks[2].Gain ?? 0) + (PlayersTricks[3].Gain ?? 0);
     public int PairPlan(int pair) => (PlayersTricks[pair].Plan ?? 0) + (PlayersTricks[pair + 2].Plan ?? 0);
     public int PairGain(int pair) => (PlayersTricks[pair].Gain ?? 0) + (PlayersTricks[pair + 2].Gain ?? 0);
-    public int SumPlan() =>
-        (PlayersTricks[0].Plan ?? 0) + (PlayersTricks[1].Plan ?? 0) + (PlayersTricks[2].Plan ?? 0) + (PlayersTricks[3].Plan ?? 0);
-    public int SumGain() =>
-        (PlayersTricks[0].Gain ?? 0) + (PlayersTricks[1].Gain ?? 0) + (PlayersTricks[2].Gain ?? 0) + (PlayersTricks[3].Gain ?? 0);
-    public int PairScore(int pair) => (int)PairScores[pair].score;
-    public int PairOvertrick(int pair) => (int)PairScores[pair].overtrick;
-    private bool DataCompleted() => (SumPlan() > 0) && (SumGain() == 13);
-    public bool Validated() => (SumGain() == totalTricks); // żadnego nula, Sum
-    public bool GainIncorrect()
-    {
-        return (PlayersTricks[0].Gain != null) && (PlayersTricks[1].Gain != null) && (PlayersTricks[2].Gain != null) && (PlayersTricks[3].Gain != null) && (SumGain() != totalTricks);
-    }
+    public string PairScore(int pair) => PairScores[pair].score != null ? PairScores[pair].score.ToString() : "-";
+    public string PairOvertrick(int pair) => PairScores[pair].overtrick != null ? PairScores[pair].overtrick.ToString() : "-";
     public void CalculateScore(Game previousGame = null)
     {
         CalculatePairScore(PairNumber.First, previousGame);
         CalculatePairScore(PairNumber.Second, previousGame);
     }
-    
     public bool CalculatePairScore(int pair, Game previousGame)
     {
         if (previousGame == null)
@@ -99,6 +104,7 @@ public class Game
         if (PlayersTricks[player1Idx].Plan == null || PlayersTricks[player1Idx].Gain == null ||
             PlayersTricks[player2Idx].Plan == null || PlayersTricks[player2Idx].Gain == null)
         {
+            PairScores[pair].score = PairScores[pair].overtrick = null;
             return false;
         }
 
@@ -108,7 +114,7 @@ public class Game
                 PairScores[pair].score += (PlayersTricks[playerIdx].Gain == 0) ? +100 : -100;
                 //Console.WriteLine(playerIdx);
             }
-        int pairPlan = (PlayersTricks[player1Idx].Plan ?? 0) + (PlayersTricks[player2Idx].Plan ?? 0);
+        int pairPlan = (int)PlayersTricks[player1Idx].Plan + (PlayersTricks[player2Idx].Plan ?? 0);
         int pairGain = (PlayersTricks[player1Idx].Gain ?? 0) + (PlayersTricks[player2Idx].Gain ?? 0);
         if (pairGain >= pairPlan)
         {
@@ -126,12 +132,6 @@ public class Game
         }
         return true;
     }
-    public void ToggleState()
-    {
-        if (State == GameState.Planning)
-            State = GameState.Scoring;
-        else
-            State = GameState.Planning;
-    }
+   
     
 }

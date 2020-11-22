@@ -51,7 +51,7 @@
                     <td class="@playersTricks.TdCssClass()"><input type="number" min="0" max="13" class="input-trick" value=@playersTricks.Gain disabled="@(game.State != GameState.Scoring)" @onchange=@(e => { playersTricks.Gain = Convert.ToInt32(e.Value); Calculate(); }) /></td>
                 }
 
-                <td><button @onclick="@(e => ToggleState(e, game))" disabled="@(!game.ToggleStateEnabled())">@game.State</button></td>
+                <td><button class="btn-game-state" @onclick="@(e => ToggleState(e, game))" disabled="@(!game.ToggleStateEnabled(match.IsPenultimate(game)))">@game.State</button></td>
 
                 <td>@game.SumPlan()</td>
 
@@ -70,7 +70,7 @@
 </table>
 
 
-<button @onclick="@(e => NewGame(e))" disabled="@(!match.games.Last().Validated())">New game</button>
+<button @onclick="@(e => NewGame(e))" disabled="@(!match.games.Last().PlanAndGainValidated())">New game</button>
 
 @code {
     public Match match = new Match();
@@ -90,9 +90,21 @@
     }
 
 
-    private void ToggleState(MouseEventArgs e, Game game)
+    async Task ToggleState(MouseEventArgs e, Game game)
     {
-        game.ToggleState();
+        //Calculate();
+        if (game.State == GameState.Done)
+        {
+            if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the last game?"))  //new[] { s }
+                return;
+
+            match.RemoveLastGame();
+            match.games.Last().State = GameState.Scoring;
+        }
+        else
+        {
+            game.ToggleState();
+        }
     }
 
 
@@ -108,18 +120,9 @@
 
     private void NewGame(MouseEventArgs e)
     {
+        Calculate();
         match.NewGame();
     }
-
-    async Task Delete(Game game)
-    {
-        if (!await JSRuntime.InvokeAsync<bool>("confirm", $"Are you sure you want to delete the last game?"))  //new[] { s }
-            return;
-
-        match.RemoveLastGame();
-    }
-
-
 }
 
 
